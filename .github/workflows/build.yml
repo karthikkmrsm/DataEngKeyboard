@@ -1,0 +1,72 @@
+name: Build DataEng Keyboard APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.2'
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Show APK info
+        run: |
+          echo "=== APK built successfully ==="
+          find . -name "*.apk" -exec ls -lh {} \;
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DataEngKeyboard-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Create Release (on push to main)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "DataEng Keyboard v1.0.${{ github.run_number }}"
+          body: |
+            ## DataEng Keyboard APK
+            Auto-built from latest commit.
+
+            ### Install
+            1. Download `app-debug.apk` below
+            2. On Android: Settings → Security → enable "Install unknown apps"
+            3. Open the APK and install
+            4. Open DataEng Keyboard app and follow 2-step setup
+
+            ### Keywords: 140+ SQL · 160+ PySpark · 110+ Databricks
+          files: app/build/outputs/apk/debug/app-debug.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
