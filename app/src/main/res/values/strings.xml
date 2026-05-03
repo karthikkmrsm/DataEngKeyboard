@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DataEng Keyboard</string>
+    <string name="ime_name">DataEng Keyboard</string>
+    <string name="subtype_en">English (US)</string>
+
+    <!-- Setup screen -->
+    <string name="setup_title">DataEng Keyboard Setup</string>
+    <string name="setup_step1">Step 1: Enable the Keyboard</string>
+    <string name="setup_step1_desc">Go to Settings → System → Language &amp; Input → On-screen keyboard and enable DataEng Keyboard.</string>
+    <string name="setup_step2">Step 2: Select as Default</string>
+    <string name="setup_step2_desc">Tap "Manage on-screen keyboards" and set DataEng Keyboard as your default.</string>
+    <string name="btn_enable">Open Input Settings</string>
+    <string name="btn_select">Select Keyboard</string>
+    <string name="setup_done">You\'re all set! Open any app and start typing.</string>
+
+    <!-- Keyboard modes -->
+    <string name="mode_sql">SQL</string>
+    <string name="mode_spark">SPARK</string>
+    <string name="mode_db">DATABRICKS</string>
+    <string name="mode_abc">ABC</string>
+    <string name="mode_sym">#$@</string>
+</resources>

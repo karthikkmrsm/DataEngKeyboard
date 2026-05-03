@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Logo -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DE&lt;/&gt;KB"
+            android:textColor="@color/accent"
+            android:textSize="32sp"
+            android:fontFamily="monospace"
+            android:textStyle="bold"
+            android:layout_gravity="center"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="DataEng Keyboard"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:layout_gravity="center"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Chips row -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="horizontal"
+            android:layout_marginBottom="32dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SQL" android:textColor="@color/sql_color" android:background="@drawable/chip_sql" android:padding="6dp" android:layout_marginEnd="4dp" android:textSize="11sp" android:fontFamily="monospace" android:textStyle="bold"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PySpark" android:textColor="@color/spark_color" android:background="@drawable/chip_spark" android:padding="6dp" android:layout_marginEnd="4dp" android:textSize="11sp" android:fontFamily="monospace" android:textStyle="bold"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Databricks" android:textColor="@color/db_color" android:background="@drawable/chip_db" android:padding="6dp" android:textSize="11sp" android:fontFamily="monospace" android:textStyle="bold"/>
+        </LinearLayout>
+
+        <!-- Step 1 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="① Enable the Keyboard"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Go to Settings → System → Language &amp; Input → On-screen Keyboard, then enable DataEng Keyboard."
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:lineSpacingMultiplier="1.4"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnEnable"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Open Input Settings"
+            android:backgroundTint="@color/surface3"
+            android:textColor="@color/accent"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- Step 2 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="② Set as Default Keyboard"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tap the keyboard icon in any text field, or go to Language &amp; Input settings and choose DataEng Keyboard as default."
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:lineSpacingMultiplier="1.4"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnSelect"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Change Default Keyboard"
+            android:backgroundTint="@color/accent"
+            android:textColor="@color/bg"
+            android:layout_marginBottom="32dp"/>
+
+        <!-- Feature list -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Features"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="✦  200+ SQL keywords (SELECT, JOIN, GROUP BY, window functions…)\n✦  150+ PySpark keywords (DataFrame, functions, I/O, Window…)\n✦  100+ Databricks keywords (Delta, Unity Catalog, MLflow, dbutils…)\n✦  Smart autocomplete — type any letters to filter keywords\n✦  Full QWERTY + numbers + symbols keyboard\n✦  One-tap keyword insertion with auto-spacing\n✦  Works in ChatGPT, Claude, WhatsApp, Gmail — any app"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            android:lineSpacingMultiplier="1.5"
+            android:layout_marginBottom="32dp"/>
+
+    </LinearLayout>
+</ScrollView>

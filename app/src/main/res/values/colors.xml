@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base -->
+    <color name="bg">#0D0F16</color>
+    <color name="surface1">#161925</color>
+    <color name="surface2">#1E2235</color>
+    <color name="surface3">#252A40</color>
+    <color name="surface4">#2E3452</color>
+    <color name="key_bg">#1C2030</color>
+    <color name="key_press">#2C3352</color>
+    <color name="border">#14FFFFFF</color>
+
+    <!-- Text -->
+    <color name="text_primary">#DDE2F0</color>
+    <color name="text_secondary">#7A8499</color>
+    <color name="text_hint">#3D4560</color>
+
+    <!-- Accents -->
+    <color name="accent">#4F9CF9</color>
+    <color name="accent_dim">#264F9CF9</color>
+    <color name="sql_color">#2DD4BF</color>
+    <color name="sql_bg">#202DD4BF</color>
+    <color name="spark_color">#A78BFA</color>
+    <color name="spark_bg">#20A78BFA</color>
+    <color name="db_color">#FB923C</color>
+    <color name="db_bg">#20FB923C</color>
+    <color name="green">#4ADE80</color>
+    <color name="red">#F87171</color>
+
+    <!-- Status bar -->
+    <color name="statusBar">#0D0F16</color>
+</resources>

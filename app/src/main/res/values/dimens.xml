@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="key_height">44dp</dimen>
+    <dimen name="key_height_num">36dp</dimen>
+    <dimen name="key_radius">7dp</dimen>
+    <dimen name="key_margin">2dp</dimen>
+    <dimen name="key_text_size">13sp</dimen>
+    <dimen name="key_text_size_sm">10sp</dimen>
+    <dimen name="ac_chip_height">30dp</dimen>
+    <dimen name="kb_padding">5dp</dimen>
+    <dimen name="compose_height">64dp</dimen>
+    <dimen name="tab_height">32dp</dimen>
+</resources>
