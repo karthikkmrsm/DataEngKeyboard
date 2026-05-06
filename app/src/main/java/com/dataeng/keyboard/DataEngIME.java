@@ -1,9 +1,8 @@
 package com.dataeng.keyboard;
 
-import android.content.Context;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.inputmethodservice.InputMethodService;
-import android.os.Build;
 import android.text.TextUtils;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -14,6 +13,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -28,180 +28,285 @@ import java.util.Map;
 public class DataEngIME extends InputMethodService {
 
     // Modes
-    private static final String M_SQL   = "sql";
-    private static final String M_SPARK = "spark";
-    private static final String M_DB    = "db";
-    private static final String M_ABC   = "abc";
-    private static final String M_SYM   = "sym";
+    static final String M_ABC      = "abc";
+    static final String M_SQL      = "sql";
+    static final String M_SPARK    = "spark";
+    static final String M_DB       = "db";
+    static final String M_SYM      = "sym";
+    static final String M_TEMPLATE = "tmpl";
+    static final String M_SETTINGS = "settings";
 
-    private String mode     = M_SQL;
-    private int    subcat   = 0;
+    private String mode;
+    private int    subcat  = 0;
     private boolean shifted = false;
+    private boolean capsLock = false;
+    private StringBuilder buffer = new StringBuilder();
 
-    // Buffer for autocomplete matching
-    private StringBuilder typingBuffer = new StringBuilder();
+    // Theme / size (loaded fresh each time keyboard opens)
+    private int theme;
+    private int size;
 
-    // Views
-    private View      kbView;
-    private LinearLayout modeTabs, acStrip, scBar;
-    private View      scScroll;
+    // Root view
+    private View root;
+
+    // Panels
+    private LinearLayout alphaKb, symKb, settingsPanel;
     private RecyclerView kwGrid;
-    private LinearLayout alphaKb, symKb;
-    private LinearLayout numRow, alphaRow1, alphaRow2, alphaRow3, alphaBottomRow;
-    private LinearLayout symRow1, symRow2, symRow3, symRow4, symBottomRow;
+    private LinearLayout templateList;
+    private ScrollView templateScroll;
 
+    // Rows
+    private LinearLayout modeTabs, acStrip, scBar;
+    private View scScroll, acScrollView;
+
+    // Alpha rows
+    private LinearLayout numRow, alphaRow1, alphaRow2, alphaRow3, alphaBottom;
+    // Sym rows
+    private LinearLayout symRow1, symRow2, symRow3, symRow4, symBottom;
+
+    // ─────────────────────────────────────────────────────────────────────────
     @Override
     public View onCreateInputView() {
-        kbView = LayoutInflater.from(this).inflate(R.layout.keyboard_view, null);
-
-        modeTabs       = kbView.findViewById(R.id.modeTabs);
-        acStrip        = kbView.findViewById(R.id.acStrip);
-        scBar          = kbView.findViewById(R.id.scBar);
-        scScroll       = kbView.findViewById(R.id.scScroll);
-        kwGrid         = kbView.findViewById(R.id.kwGrid);
-        alphaKb        = kbView.findViewById(R.id.alphaKb);
-        symKb          = kbView.findViewById(R.id.symKb);
-        numRow         = kbView.findViewById(R.id.numRow);
-        alphaRow1      = kbView.findViewById(R.id.alphaRow1);
-        alphaRow2      = kbView.findViewById(R.id.alphaRow2);
-        alphaRow3      = kbView.findViewById(R.id.alphaRow3);
-        alphaBottomRow = kbView.findViewById(R.id.alphaBottomRow);
-        symRow1        = kbView.findViewById(R.id.symRow1);
-        symRow2        = kbView.findViewById(R.id.symRow2);
-        symRow3        = kbView.findViewById(R.id.symRow3);
-        symRow4        = kbView.findViewById(R.id.symRow4);
-        symBottomRow   = kbView.findViewById(R.id.symBottomRow);
-
-        buildModeTabs();
+        root = LayoutInflater.from(this).inflate(R.layout.keyboard_view, null);
+        bindViews();
         buildAlpha();
         buildSym();
-        switchMode(M_SQL);
-        return kbView;
+        buildSettings();
+        return root;
     }
 
     @Override
     public void onStartInputView(EditorInfo info, boolean restarting) {
         super.onStartInputView(info, restarting);
-        typingBuffer.setLength(0);
-        updateAC();
+        theme = ThemeManager.loadTheme(this);
+        size  = ThemeManager.loadSize(this);
+        mode  = ThemeManager.loadDefaultMode(this);
+        buffer.setLength(0);
+        applyThemeToRoot();
+        switchMode(mode);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // MODE TABS
-    // ─────────────────────────────────────────────────────────
+    // ── Bind views ────────────────────────────────────────────────────────────
+    private void bindViews() {
+        modeTabs      = root.findViewById(R.id.modeTabs);
+        acStrip       = root.findViewById(R.id.acStrip);
+        acScrollView  = root.findViewById(R.id.acScrollView);
+        scBar         = root.findViewById(R.id.scBar);
+        scScroll      = root.findViewById(R.id.scScroll);
+        kwGrid        = root.findViewById(R.id.kwGrid);
+        alphaKb       = root.findViewById(R.id.alphaKb);
+        symKb         = root.findViewById(R.id.symKb);
+        settingsPanel = root.findViewById(R.id.settingsPanel);
+        templateScroll= root.findViewById(R.id.templateScroll);
+        templateList  = root.findViewById(R.id.templateList);
+
+        numRow    = root.findViewById(R.id.numRow);
+        alphaRow1 = root.findViewById(R.id.alphaRow1);
+        alphaRow2 = root.findViewById(R.id.alphaRow2);
+        alphaRow3 = root.findViewById(R.id.alphaRow3);
+        alphaBottom = root.findViewById(R.id.alphaBottomRow);
+
+        symRow1   = root.findViewById(R.id.symRow1);
+        symRow2   = root.findViewById(R.id.symRow2);
+        symRow3   = root.findViewById(R.id.symRow3);
+        symRow4   = root.findViewById(R.id.symRow4);
+        symBottom = root.findViewById(R.id.symBottomRow);
+    }
+
+    // ── Apply theme to entire keyboard background ─────────────────────────────
+    private void applyThemeToRoot() {
+        root.setBackgroundColor(ThemeManager.surface1(theme));
+        int bg = ThemeManager.bg(theme);
+        if (acScrollView != null) acScrollView.setBackgroundColor(ThemeManager.surface2(theme));
+    }
+
+    // ── Mode switching ────────────────────────────────────────────────────────
+    private void switchMode(String m) {
+        mode = m;
+        buffer.setLength(0);
+
+        // Hide all panels
+        hide(kwGrid); hide(scScroll); hide(alphaKb);
+        hide(symKb);  hide(settingsPanel); hide(templateScroll);
+
+        buildModeTabs();
+        updateAC();
+
+        switch (m) {
+            case M_SQL: case M_SPARK: case M_DB:
+                show(scScroll); show(kwGrid);
+                buildScBar(); buildKwGrid();
+                break;
+            case M_ABC:
+                show(alphaKb);
+                refreshAlphaTheme();
+                break;
+            case M_SYM:
+                show(symKb);
+                refreshSymTheme();
+                break;
+            case M_TEMPLATE:
+                show(templateScroll);
+                buildTemplates();
+                break;
+            case M_SETTINGS:
+                show(settingsPanel);
+                buildSettingsPanel();
+                break;
+        }
+    }
+
+    // ── Mode tabs ─────────────────────────────────────────────────────────────
     private void buildModeTabs() {
         modeTabs.removeAllViews();
         String[][] tabs = {
-            {M_SQL,   "SQL",        "#2DD4BF"},
-            {M_SPARK, "PYSPARK",    "#A78BFA"},
-            {M_DB,    "DATABRICKS", "#FB923C"},
-            {M_ABC,   "ABC",        "#7A8499"},
-            {M_SYM,   "#$@",        "#4F9CF9"},
+            {M_ABC,"ABC"}, {M_SQL,"SQL"}, {M_SPARK,"SPARK"},
+            {M_DB,"DATA\nBRICKS"}, {M_SYM,"#$@"},
+            {M_TEMPLATE,"TMPL"}, {M_SETTINGS,"⚙"}
         };
         for (String[] t : tabs) {
-            TextView tv = makeTab(t[0], t[1], t[2]);
+            String id = t[0]; String label = t[1];
+            TextView tv = new TextView(this);
+            tv.setText(label);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
+            tv.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            tv.setPadding(dp(9), dp(3), dp(9), dp(3));
+            tv.setGravity(Gravity.CENTER);
+
+            int accentColor = modeColor(id);
+            boolean active = id.equals(mode);
+            if (active) {
+                tv.setTextColor(ThemeManager.bg(theme));
+                tv.setBackground(ThemeManager.roundRect(accentColor, 20, this));
+            } else {
+                tv.setTextColor(accentColor);
+                tv.setBackground(ThemeManager.roundRectStroke(
+                    ThemeManager.tint(accentColor, 0.12f), accentColor, 20, 1, this));
+                tv.setAlpha(0.7f);
+            }
+            tv.setOnClickListener(v -> switchMode(id));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMarginEnd(dp(4));
+            tv.setLayoutParams(lp);
             modeTabs.addView(tv);
         }
     }
 
-    private TextView makeTab(String modeId, String label, String hex) {
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        tv.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        tv.setPadding(dp(10), dp(4), dp(10), dp(4));
-        tv.setTextColor(parseColor(hex));
-        tv.setBackground(buildRoundedBg(parseColor(hex) & 0x33FFFFFF | (parseColor(hex) & 0x00FFFFFF), 20));
-        tv.setOnClickListener(v -> switchMode(modeId));
-        tv.setTag(modeId);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMarginEnd(dp(4));
-        tv.setLayoutParams(lp);
-        return tv;
+    private int modeColor(String m) {
+        switch (m) {
+            case M_SQL:      return ThemeManager.sql(theme);
+            case M_SPARK:    return ThemeManager.spark(theme);
+            case M_DB:       return ThemeManager.db(theme);
+            case M_TEMPLATE: return ThemeManager.accent(theme);
+            case M_SETTINGS: return ThemeManager.textSec(theme);
+            default:         return ThemeManager.textSec(theme);
+        }
     }
 
-    private void highlightTab() {
-        for (int i = 0; i < modeTabs.getChildCount(); i++) {
-            View child = modeTabs.getChildAt(i);
-            if (child instanceof TextView) {
-                String tag = (String) child.getTag();
-                child.setAlpha(tag.equals(mode) ? 1f : 0.38f);
-                child.setScaleX(tag.equals(mode) ? 1.05f : 1f);
-                child.setScaleY(tag.equals(mode) ? 1.05f : 1f);
+    // ── Autocomplete ──────────────────────────────────────────────────────────
+    private void updateAC() {
+        acStrip.removeAllViews();
+        String buf = buffer.toString().trim();
+
+        // Always show shortcut keys in the AC bar
+        String[] shortcuts = {"( )", "[ ]", "{ }", ".", ",", ";", ":", "=>", "!=", ">=", "<="};
+        for (String s : shortcuts) {
+            acStrip.addView(makeAcShortcut(s));
+        }
+
+        if (buf.length() >= 1) {
+            String poolMode = (M_SQL.equals(mode)||M_SPARK.equals(mode)||M_DB.equals(mode))
+                ? mode : null;
+            List<String> matches = KeywordData.search(buf, poolMode);
+            for (String kw : matches) {
+                acStrip.addView(makeAcChip(kw));
             }
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // SWITCH MODE
-    // ─────────────────────────────────────────────────────────
-    private void switchMode(String m) {
-        mode = m;
-        subcat = 0;
-        highlightTab();
-        typingBuffer.setLength(0);
-        updateAC();
-
-        // Hide all panels
-        kwGrid.setVisibility(View.GONE);
-        scScroll.setVisibility(View.GONE);
-        alphaKb.setVisibility(View.GONE);
-        symKb.setVisibility(View.GONE);
-
-        switch (m) {
-            case M_SQL:
-            case M_SPARK:
-            case M_DB:
-                scScroll.setVisibility(View.VISIBLE);
-                kwGrid.setVisibility(View.VISIBLE);
-                buildScBar();
-                buildKwGrid();
-                break;
-            case M_ABC:
-                alphaKb.setVisibility(View.VISIBLE);
-                break;
-            case M_SYM:
-                symKb.setVisibility(View.VISIBLE);
-                break;
-        }
+    private TextView makeAcShortcut(String s) {
+        TextView tv = new TextView(this);
+        tv.setText(s);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tv.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        tv.setPadding(dp(10), dp(2), dp(10), dp(2));
+        tv.setTextColor(ThemeManager.accent(theme));
+        tv.setBackground(ThemeManager.roundRectStroke(
+            ThemeManager.tint(ThemeManager.accent(theme), 0.12f),
+            ThemeManager.accent(theme), 20, 1, this));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        lp.setMarginEnd(dp(4));
+        lp.topMargin = dp(3); lp.bottomMargin = dp(3);
+        tv.setLayoutParams(lp);
+        tv.setGravity(Gravity.CENTER);
+        tv.setOnClickListener(v -> {
+            if (s.equals("( )")) { commitText("()"); moveCursorLeft(); }
+            else if (s.equals("[ ]")) { commitText("[]"); moveCursorLeft(); }
+            else if (s.equals("{ }")) { commitText("{}"); moveCursorLeft(); }
+            else commitText(s.replace(" ",""));
+        });
+        return tv;
     }
 
-    // ─────────────────────────────────────────────────────────
-    // SUB-CATEGORY BAR
-    // ─────────────────────────────────────────────────────────
+    private TextView makeAcChip(String kw) {
+        String type = KeywordData.getType(kw);
+        int color;
+        switch (type) {
+            case KeywordData.TYPE_SPARK: color = ThemeManager.spark(theme); break;
+            case KeywordData.TYPE_DB:    color = ThemeManager.db(theme);    break;
+            default:                     color = ThemeManager.sql(theme);
+        }
+        TextView tv = new TextView(this);
+        tv.setText(kw);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        tv.setTypeface(Typeface.MONOSPACE);
+        tv.setPadding(dp(10), dp(2), dp(10), dp(2));
+        tv.setTextColor(color);
+        tv.setBackground(ThemeManager.roundRectStroke(
+            ThemeManager.tint(color, 0.12f), color, 20, 1, this));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        lp.setMarginEnd(dp(4));
+        lp.topMargin = dp(3); lp.bottomMargin = dp(3);
+        tv.setLayoutParams(lp);
+        tv.setGravity(Gravity.CENTER);
+        tv.setOnClickListener(v -> insertKeyword(kw));
+        return tv;
+    }
+
+    // ── Sub-category bar ──────────────────────────────────────────────────────
     private void buildScBar() {
         scBar.removeAllViews();
         Map<String, String[]> pool = getPool();
         int idx = 0;
         for (String cat : pool.keySet()) {
-            final int i = idx;
+            final int i = idx++;
             TextView tv = new TextView(this);
             tv.setText(cat.toUpperCase());
             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9);
             tv.setTypeface(Typeface.DEFAULT_BOLD);
             tv.setPadding(dp(9), dp(2), dp(9), dp(2));
-            tv.setLetterSpacing(0.08f);
+            tv.setLetterSpacing(0.07f);
             if (i == subcat) {
-                tv.setTextColor(getColor(R.color.bg));
-                tv.setBackground(buildRoundedBg(modeAccentColor(), 20));
+                tv.setTextColor(ThemeManager.bg(theme));
+                tv.setBackground(ThemeManager.roundRect(modeColor(mode), 20, this));
             } else {
-                tv.setTextColor(getColor(R.color.text_secondary));
-                tv.setBackground(buildRoundedBg(0x22FFFFFF, 20));
+                tv.setTextColor(ThemeManager.textSec(theme));
+                tv.setBackground(ThemeManager.roundRect(
+                    ThemeManager.tint(ThemeManager.textSec(theme), 0.15f), 20, this));
             }
             tv.setOnClickListener(v -> { subcat = i; buildScBar(); buildKwGrid(); });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            lp.setMarginEnd(dp(4));
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMarginEnd(dp(5));
             tv.setLayoutParams(lp);
             scBar.addView(tv);
-            idx++;
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // KEYWORD GRID
-    // ─────────────────────────────────────────────────────────
+    // ── Keyword grid ──────────────────────────────────────────────────────────
     private void buildKwGrid() {
         Map<String, String[]> pool = getPool();
         String[] cats = pool.keySet().toArray(new String[0]);
@@ -209,291 +314,493 @@ public class DataEngIME extends InputMethodService {
         String[] kws = pool.get(cats[subcat]);
         List<String> list = kws == null ? new ArrayList<>() : Arrays.asList(kws);
 
+        // Set height based on size
+        ViewGroup.LayoutParams lp = kwGrid.getLayoutParams();
+        lp.height = dp(ThemeManager.kwHeightDp(size) * 5 + 10);
+        kwGrid.setLayoutParams(lp);
+        kwGrid.setBackgroundColor(ThemeManager.surface1(theme));
         kwGrid.setLayoutManager(new GridLayoutManager(this, 4));
-        kwGrid.setAdapter(new KwAdapter(list, mode, this::insertKeyword));
+        kwGrid.setAdapter(new KwAdapter(list, mode, theme, size, this::insertKeyword));
     }
 
-    // ─────────────────────────────────────────────────────────
-    // AUTOCOMPLETE STRIP
-    // ─────────────────────────────────────────────────────────
-    private void updateAC() {
-        acStrip.removeAllViews();
-        String buf = typingBuffer.toString().trim();
-        if (buf.isEmpty()) {
-            TextView hint = new TextView(this);
-            hint.setText("type to search keywords…");
-            hint.setTextColor(getColor(R.color.text_hint));
-            hint.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10);
-            hint.setTypeface(Typeface.MONOSPACE);
-            acStrip.addView(hint);
-            return;
-        }
-        List<String> results = KeywordData.search(buf, isKwMode() ? mode : null);
-        for (String kw : results) {
-            acStrip.addView(makeAcChip(kw));
-        }
-    }
-
-    private TextView makeAcChip(String kw) {
-        TextView tv = new TextView(this);
-        tv.setText(kw);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
-        tv.setTypeface(Typeface.MONOSPACE);
-        tv.setPadding(dp(10), dp(3), dp(10), dp(3));
-        String type = KeywordData.getType(kw);
-        int color;
-        switch (type) {
-            case KeywordData.TYPE_SPARK: color = getColor(R.color.spark_color); break;
-            case KeywordData.TYPE_DB:    color = getColor(R.color.db_color);    break;
-            default:                     color = getColor(R.color.sql_color);
-        }
-        tv.setTextColor(color);
-        tv.setBackground(buildRoundedBg(color & 0x22FFFFFF, 20));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.setMarginEnd(dp(4));
-        tv.setLayoutParams(lp);
-        tv.setOnClickListener(v -> insertKeyword(kw));
-        return tv;
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // ALPHA KEYBOARD
-    // ─────────────────────────────────────────────────────────
+    // ── ALPHA keyboard ────────────────────────────────────────────────────────
     private void buildAlpha() {
         // Number row
         numRow.removeAllViews();
-        for (char c : "1234567890".toCharArray()) {
-            numRow.addView(makeAlphaKey(String.valueOf(c), 1f, false, false, true));
-        }
+        for (char c : "1234567890".toCharArray())
+            numRow.addView(makeKey(String.valueOf(c), 1f, false, true));
 
-        // QWERTY rows
-        String[] r1 = {"Q","W","E","R","T","Y","U","I","O","P"};
-        String[] r2 = {"A","S","D","F","G","H","J","K","L"};
-        String[] r3 = {"Z","X","C","V","B","N","M"};
+        buildQwertyRows();
+        buildAlphaBottomRow();
+    }
 
-        buildAlphaRow(alphaRow1, r1, false);
-        buildAlphaRow(alphaRow2, r2, false);
+    private void buildQwertyRows() {
+        alphaRow1.removeAllViews();
+        for (String k : new String[]{"Q","W","E","R","T","Y","U","I","O","P"})
+            alphaRow1.addView(makeLetterKey(k));
+
+        alphaRow2.removeAllViews();
+        for (String k : new String[]{"A","S","D","F","G","H","J","K","L"})
+            alphaRow2.addView(makeLetterKey(k));
 
         alphaRow3.removeAllViews();
-        // Shift key
-        TextView shiftKey = makeAlphaKey("⇧", 1.5f, true, false, false);
-        shiftKey.setId(R.id.shift_key_id);
-        shiftKey.setOnClickListener(v -> toggleShift());
-        alphaRow3.addView(shiftKey);
-        for (String c : r3) {
-            alphaRow3.addView(makeAlphaKey(c, 1f, false, false, false));
-        }
+        // Shift
+        TextView shift = makeKey(capsLock ? "⇪" : shifted ? "⇧↑" : "⇧", 1.4f, true, false);
+        shift.setId(R.id.shift_key_id);
+        shift.setTextColor(shifted || capsLock ? ThemeManager.accent(theme) : ThemeManager.textSec(theme));
+        shift.setOnClickListener(v -> {
+            if (capsLock) { capsLock = false; shifted = false; }
+            else if (shifted) { capsLock = true; }
+            else { shifted = true; }
+            refreshShiftState();
+        });
+        alphaRow3.addView(shift);
+        for (String k : new String[]{"Z","X","C","V","B","N","M"})
+            alphaRow3.addView(makeLetterKey(k));
         // Backspace
-        TextView del = makeAlphaKey("⌫", 1.5f, true, false, false);
-        del.setTextColor(getColor(R.color.red));
+        TextView del = makeKey("⌫", 1.4f, true, false);
+        del.setTextColor(0xFFF87171);
         del.setOnClickListener(v -> deleteChar());
         del.setOnLongClickListener(v -> { clearWord(); return true; });
         alphaRow3.addView(del);
+    }
 
-        // Bottom row
-        alphaBottomRow.removeAllViews();
-        TextView symBtn = makeAlphaKey("#$@", 1.5f, true, false, false);
-        symBtn.setTextColor(getColor(R.color.accent));
-        symBtn.setOnClickListener(v -> switchMode(M_SYM));
-        alphaBottomRow.addView(symBtn);
-
-        TextView kwBtn = makeAlphaKey("KW", 1.5f, true, false, false);
-        kwBtn.setTextColor(getColor(R.color.sql_color));
-        kwBtn.setOnClickListener(v -> switchMode(M_SQL));
-        alphaBottomRow.addView(kwBtn);
-
-        TextView space = makeAlphaKey("SPACE", 4f, true, false, false);
-        space.setTextColor(getColor(R.color.text_hint));
-        space.setOnClickListener(v -> commitText(" "));
-        alphaBottomRow.addView(space);
-
-        TextView dot = makeAlphaKey(".", 1f, true, false, false);
+    private void buildAlphaBottomRow() {
+        alphaBottom.removeAllViews();
+        // #$@ sym
+        TextView sym = makeKey("#$@", 1.3f, true, false);
+        sym.setTextColor(ThemeManager.accent(theme));
+        sym.setOnClickListener(v -> switchMode(M_SYM));
+        alphaBottom.addView(sym);
+        // KW shortcut
+        TextView kw = makeKey("KW", 1.3f, true, false);
+        kw.setTextColor(ThemeManager.sql(theme));
+        kw.setOnClickListener(v -> switchMode(M_SQL));
+        alphaBottom.addView(kw);
+        // . shortcut
+        TextView dot = makeKey(".", 0.8f, true, false);
+        dot.setTextColor(ThemeManager.textSec(theme));
         dot.setOnClickListener(v -> commitText("."));
-        alphaBottomRow.addView(dot);
-
-        TextView enter = makeAlphaKey("↵", 1.5f, true, false, false);
-        enter.setTextColor(getColor(R.color.green));
+        alphaBottom.addView(dot);
+        // Space
+        TextView space = makeKey("SPACE", 3.5f, true, false);
+        space.setTextColor(ThemeManager.textSec(theme));
+        space.setOnClickListener(v -> { commitText(" "); buffer.setLength(0); updateAC(); });
+        alphaBottom.addView(space);
+        // ( ) shortcut
+        TextView paren = makeKey("()", 0.9f, true, false);
+        paren.setTextColor(ThemeManager.accent(theme));
+        paren.setOnClickListener(v -> { commitText("()"); moveCursorLeft(); });
+        alphaBottom.addView(paren);
+        // Enter
+        TextView enter = makeKey("↵", 1.3f, true, false);
+        enter.setTextColor(0xFF4ADE80);
         enter.setOnClickListener(v -> commitText("\n"));
-        alphaBottomRow.addView(enter);
+        alphaBottom.addView(enter);
     }
 
-    private void buildAlphaRow(LinearLayout row, String[] keys, boolean isFn) {
-        row.removeAllViews();
-        for (String k : keys) {
-            row.addView(makeAlphaKey(k, 1f, isFn, false, false));
-        }
-    }
-
-    private TextView makeAlphaKey(String label, float weight, boolean isFn, boolean isAccent, boolean isNum) {
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, isFn || isNum ? 12 : 16);
-        tv.setTypeface(isFn || isNum ? Typeface.MONOSPACE : Typeface.DEFAULT_BOLD);
-        tv.setGravity(Gravity.CENTER);
-        tv.setTextColor(getColor(isAccent ? R.color.accent : isFn ? R.color.text_secondary : R.color.text_primary));
-        tv.setBackground(getDrawable(isNum ? R.drawable.key_bg_default : R.drawable.key_bg_default));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.MATCH_PARENT, weight);
-        lp.setMargins(dp(2), dp(2), dp(2), dp(2));
-        tv.setLayoutParams(lp);
-        if (!label.equals("⇧") && !label.equals("⌫") && !label.equals("↵")
-                && !label.equals("SPACE") && !label.equals("#$@") && !label.equals("KW") && !label.equals(".")) {
-            tv.setOnClickListener(v -> {
-                String ch = shifted ? label.toUpperCase() : label.toLowerCase();
-                commitText(ch);
-                if (shifted) { shifted = false; refreshShiftKey(); }
-            });
-        }
+    private TextView makeLetterKey(String letter) {
+        TextView tv = makeKey(letter, 1f, false, false);
+        tv.setTag(letter);
+        tv.setOnClickListener(v -> {
+            String ch = (shifted || capsLock) ? letter.toUpperCase() : letter.toLowerCase();
+            commitText(ch);
+            if (shifted && !capsLock) { shifted = false; refreshShiftState(); }
+        });
         return tv;
     }
 
-    private void toggleShift() {
-        shifted = !shifted;
-        refreshShiftKey();
-        // Update all letter keys in rows 1-3
-        updateAlphaCase(alphaRow1);
-        updateAlphaCase(alphaRow2);
-        updateAlphaCase(alphaRow3);
+    private void refreshShiftState() {
+        View sk = root.findViewById(R.id.shift_key_id);
+        if (sk instanceof TextView) {
+            TextView t = (TextView) sk;
+            t.setText(capsLock ? "⇪" : shifted ? "⇧" : "⇧");
+            t.setTextColor(shifted || capsLock ? ThemeManager.accent(theme) : ThemeManager.textSec(theme));
+        }
+        // Update letters
+        refreshAlphaLetters(alphaRow1);
+        refreshAlphaLetters(alphaRow2);
+        refreshAlphaLetters(alphaRow3);
     }
 
-    private void refreshShiftKey() {
-        View sk = kbView.findViewById(R.id.shift_key_id);
-        if (sk instanceof TextView) {
-            ((TextView)sk).setTextColor(getColor(shifted ? R.color.accent : R.color.text_secondary));
+    private void refreshAlphaLetters(LinearLayout row) {
+        for (int i = 0; i < row.getChildCount(); i++) {
+            View v = row.getChildAt(i);
+            if (v instanceof TextView && v.getTag() instanceof String) {
+                String letter = (String) v.getTag();
+                ((TextView) v).setText((shifted || capsLock) ?
+                    letter.toUpperCase() : letter.toLowerCase());
+            }
         }
     }
 
-    private void updateAlphaCase(LinearLayout row) {
+    private void refreshAlphaTheme() {
+        applyThemeToRow(numRow);
+        applyThemeToRow(alphaRow1);
+        applyThemeToRow(alphaRow2);
+        applyThemeToRow(alphaRow3);
+        applyThemeToRow(alphaBottom);
+        alphaKb.setBackgroundColor(ThemeManager.surface1(theme));
+    }
+
+    private void applyThemeToRow(LinearLayout row) {
+        if (row == null) return;
         for (int i = 0; i < row.getChildCount(); i++) {
             View v = row.getChildAt(i);
             if (v instanceof TextView) {
-                TextView tv = (TextView) v;
-                String t = tv.getText().toString();
-                if (t.length() == 1 && Character.isLetter(t.charAt(0))) {
-                    tv.setText(shifted ? t.toUpperCase() : t.toLowerCase());
-                }
+                GradientDrawable bg = ThemeManager.roundRect(ThemeManager.keyBg(theme), 7, this);
+                v.setBackground(bg);
             }
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // SYMBOL KEYBOARD
-    // ─────────────────────────────────────────────────────────
+    // ── SYM keyboard ──────────────────────────────────────────────────────────
     private void buildSym() {
         String[][] rows = {
-            {"(", ")", "{", "}", "[", "]", "<", ">"},
-            {"\"", "'", "`", "\\", "/", "|", "~", "^"},
-            {"!", "@", "#", "$", "%", "&", "*", "-"},
-            {"+", "=", "_", ":", ";", ",", ".", "?"},
+            {"(",")","{","}","[","]","<",">"},
+            {"\"","'","`","\\","/","|","~","^"},
+            {"!","@","#","$","%","&","*","-"},
+            {"+","=","_",":",";",","  ,".","?"},
         };
-        LinearLayout[] rowViews = {symRow1, symRow2, symRow3, symRow4};
+        LinearLayout[] rv = {symRow1, symRow2, symRow3, symRow4};
         for (int r = 0; r < rows.length; r++) {
-            rowViews[r].removeAllViews();
-            for (String s : rows[r]) {
-                rowViews[r].addView(makeSymKey(s, s, false));
-            }
+            rv[r].removeAllViews();
+            for (String s : rows[r]) rv[r].addView(makeSymKey(s));
         }
-        // Bottom row
-        symBottomRow.removeAllViews();
-        TextView abcBtn = makeSymKey("← ABC", null, true);
-        abcBtn.setTextColor(getColor(R.color.accent));
-        abcBtn.setOnClickListener(v -> switchMode(M_ABC));
-        symBottomRow.addView(abcBtn);
-
-        TextView kwBtn = makeSymKey("SQL KW", null, true);
-        kwBtn.setTextColor(getColor(R.color.sql_color));
-        kwBtn.setOnClickListener(v -> switchMode(M_SQL));
-        symBottomRow.addView(kwBtn);
-
-        TextView sp = makeSymKey("SPACE", null, true);
-        sp.setTextColor(getColor(R.color.text_hint));
-        sp.setOnClickListener(v -> commitText(" "));
-        symBottomRow.addView(sp);
-
-        TextView del = makeSymKey("⌫", null, true);
-        del.setTextColor(getColor(R.color.red));
-        del.setOnClickListener(v -> deleteChar());
-        del.setOnLongClickListener(v -> { clearWord(); return true; });
-        symBottomRow.addView(del);
+        buildSymBottom();
     }
 
-    private TextView makeSymKey(String label, String charToType, boolean isFn) {
-        TextView tv = new TextView(this);
-        tv.setText(label);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, isFn ? 11 : 15);
-        tv.setTypeface(Typeface.MONOSPACE);
-        tv.setGravity(Gravity.CENTER);
-        tv.setTextColor(getColor(R.color.text_secondary));
-        tv.setBackground(getDrawable(isFn ? R.drawable.key_bg_default : R.drawable.key_bg_default));
-        float weight = isFn ? 1.5f : 1f;
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.MATCH_PARENT, weight);
-        lp.setMargins(dp(2), dp(2), dp(2), dp(2));
-        tv.setLayoutParams(lp);
-        if (charToType != null) {
-            tv.setOnClickListener(v -> commitText(charToType));
-        }
+    private void buildSymBottom() {
+        symBottom.removeAllViews();
+        TextView abc = makeKey("← ABC", 1.5f, true, false);
+        abc.setTextColor(ThemeManager.accent(theme));
+        abc.setOnClickListener(v -> switchMode(M_ABC));
+        symBottom.addView(abc);
+        TextView kw = makeKey("KW", 1.2f, true, false);
+        kw.setTextColor(ThemeManager.sql(theme));
+        kw.setOnClickListener(v -> switchMode(M_SQL));
+        symBottom.addView(kw);
+        // () shortcut
+        TextView paren = makeKey("()", 1f, true, false);
+        paren.setTextColor(ThemeManager.accent(theme));
+        paren.setOnClickListener(v -> { commitText("()"); moveCursorLeft(); });
+        symBottom.addView(paren);
+        // . shortcut
+        TextView dot = makeKey(".", 0.8f, true, false);
+        dot.setTextColor(ThemeManager.textSec(theme));
+        dot.setOnClickListener(v -> commitText("."));
+        symBottom.addView(dot);
+        TextView sp = makeKey("SPACE", 2f, true, false);
+        sp.setTextColor(ThemeManager.textSec(theme));
+        sp.setOnClickListener(v -> commitText(" "));
+        symBottom.addView(sp);
+        TextView del = makeKey("⌫", 1.2f, true, false);
+        del.setTextColor(0xFFF87171);
+        del.setOnClickListener(v -> deleteChar());
+        del.setOnLongClickListener(v -> { clearWord(); return true; });
+        symBottom.addView(del);
+    }
+
+    private TextView makeSymKey(String s) {
+        TextView tv = makeKey(s, 1f, false, false);
+        tv.setOnClickListener(v -> commitText(s));
         return tv;
     }
 
-    // ─────────────────────────────────────────────────────────
-    // TEXT INPUT HELPERS
-    // ─────────────────────────────────────────────────────────
+    private void refreshSymTheme() {
+        applyThemeToRow(symRow1); applyThemeToRow(symRow2);
+        applyThemeToRow(symRow3); applyThemeToRow(symRow4);
+        applyThemeToRow(symBottom);
+        symKb.setBackgroundColor(ThemeManager.surface1(theme));
+    }
+
+    // ── TEMPLATE panel ────────────────────────────────────────────────────────
+    private void buildTemplates() {
+        templateList.removeAllViews();
+        templateScroll.setBackgroundColor(ThemeManager.surface1(theme));
+        templateList.setBackgroundColor(ThemeManager.surface1(theme));
+
+        for (String name : TemplateData.getNames()) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(dp(8), dp(5), dp(8), dp(5));
+            row.setBackground(ThemeManager.roundRectStroke(
+                ThemeManager.keyBg(theme), ThemeManager.border(theme), 8, 1, this));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = dp(5);
+            row.setLayoutParams(lp);
+
+            TextView title = new TextView(this);
+            title.setText(name);
+            title.setTextColor(ThemeManager.accent(theme));
+            title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            title.setTypeface(Typeface.DEFAULT_BOLD);
+            title.setPadding(0, 0, 0, dp(3));
+            row.addView(title);
+
+            String preview = TemplateData.getTemplate(name);
+            String shortPrev = preview.length() > 60 ? preview.substring(0, 60) + "…" : preview;
+            TextView prev = new TextView(this);
+            prev.setText(shortPrev);
+            prev.setTextColor(ThemeManager.textSec(theme));
+            prev.setTextSize(TypedValue.COMPLEX_UNIT_SP, 9);
+            prev.setTypeface(Typeface.MONOSPACE);
+            row.addView(prev);
+
+            row.setOnClickListener(v -> insertTemplate(TemplateData.getTemplate(name)));
+            templateList.addView(row);
+        }
+
+        // Back button
+        TextView back = makeKey("← Back", 1f, true, false);
+        back.setTextColor(ThemeManager.accent(theme));
+        back.setOnClickListener(v -> switchMode(ThemeManager.loadDefaultMode(this)));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
+        blp.topMargin = dp(6);
+        back.setLayoutParams(blp);
+        templateList.addView(back);
+    }
+
+    // ── SETTINGS panel ────────────────────────────────────────────────────────
+    private void buildSettings() {}
+
+    private void buildSettingsPanel() {
+        settingsPanel.removeAllViews();
+        settingsPanel.setBackgroundColor(ThemeManager.surface1(theme));
+        settingsPanel.setOrientation(LinearLayout.VERTICAL);
+        settingsPanel.setPadding(dp(10), dp(6), dp(10), dp(6));
+
+        // ── Theme section
+        addSettingHeader("🎨  Keyboard Theme");
+        LinearLayout themeRow = makeHScroll();
+        for (int i = 0; i < ThemeManager.THEME_NAMES.length - 1; i++) {
+            final int idx = i;
+            TextView tv = new TextView(this);
+            tv.setText(ThemeManager.THEME_NAMES[i]);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            tv.setTypeface(Typeface.DEFAULT_BOLD);
+            tv.setPadding(dp(10), dp(6), dp(10), dp(6));
+            boolean selected = (theme == i);
+            if (selected) {
+                tv.setTextColor(ThemeManager.bg(i));
+                tv.setBackground(ThemeManager.roundRect(ThemeManager.accent(i), 20, this));
+            } else {
+                tv.setTextColor(ThemeManager.accent(i));
+                tv.setBackground(ThemeManager.roundRectStroke(
+                    ThemeManager.tint(ThemeManager.accent(i), 0.12f),
+                    ThemeManager.accent(i), 20, 1, this));
+            }
+            tv.setOnClickListener(v -> {
+                ThemeManager.saveTheme(this, idx);
+                theme = idx;
+                applyThemeToRoot();
+                switchMode(mode);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMarginEnd(dp(6));
+            tv.setLayoutParams(lp);
+            themeRow.addView(tv);
+        }
+        settingsPanel.addView(wrapHScroll(themeRow));
+
+        // ── Size section
+        addSettingHeader("📐  Key Size");
+        LinearLayout sizeRow = makeHScroll();
+        String[] sizeLabels = {"Small 🔡", "Normal ⌨️", "Large 🔠"};
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            TextView tv = new TextView(this);
+            tv.setText(sizeLabels[i]);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            tv.setTypeface(Typeface.DEFAULT_BOLD);
+            tv.setPadding(dp(12), dp(6), dp(12), dp(6));
+            boolean selected = (size == i);
+            if (selected) {
+                tv.setTextColor(ThemeManager.bg(theme));
+                tv.setBackground(ThemeManager.roundRect(ThemeManager.accent(theme), 20, this));
+            } else {
+                tv.setTextColor(ThemeManager.textSec(theme));
+                tv.setBackground(ThemeManager.roundRectStroke(
+                    ThemeManager.tint(ThemeManager.textSec(theme), 0.12f),
+                    ThemeManager.textSec(theme), 20, 1, this));
+            }
+            tv.setOnClickListener(v -> {
+                ThemeManager.saveSize(this, idx);
+                size = idx;
+                buildAlpha(); buildSym();
+                switchMode(mode);
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMarginEnd(dp(8));
+            tv.setLayoutParams(lp);
+            sizeRow.addView(tv);
+        }
+        settingsPanel.addView(wrapHScroll(sizeRow));
+
+        // ── Default mode
+        addSettingHeader("🏠  Default Landing Keyboard");
+        LinearLayout modeRow = makeHScroll();
+        String[][] modes = {{M_ABC,"ABC ⌨️"},{M_SQL,"SQL"},{M_SPARK,"PySpark"},{M_DB,"Databricks"}};
+        String curDef = ThemeManager.loadDefaultMode(this);
+        for (String[] md : modes) {
+            final String mId = md[0];
+            TextView tv = new TextView(this);
+            tv.setText(md[1]);
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            tv.setTypeface(Typeface.DEFAULT_BOLD);
+            tv.setPadding(dp(12), dp(6), dp(12), dp(6));
+            boolean selected = mId.equals(curDef);
+            int mColor = modeColor(mId);
+            if (selected) {
+                tv.setTextColor(ThemeManager.bg(theme));
+                tv.setBackground(ThemeManager.roundRect(mColor, 20, this));
+            } else {
+                tv.setTextColor(mColor);
+                tv.setBackground(ThemeManager.roundRectStroke(
+                    ThemeManager.tint(mColor, 0.12f), mColor, 20, 1, this));
+            }
+            tv.setOnClickListener(v -> {
+                ThemeManager.saveDefaultMode(this, mId);
+                buildSettingsPanel(); // refresh
+            });
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.setMarginEnd(dp(8));
+            tv.setLayoutParams(lp);
+            modeRow.addView(tv);
+        }
+        settingsPanel.addView(wrapHScroll(modeRow));
+
+        // ── Back button
+        TextView back = new TextView(this);
+        back.setText("← Done");
+        back.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        back.setTypeface(Typeface.DEFAULT_BOLD);
+        back.setTextColor(ThemeManager.bg(theme));
+        back.setGravity(Gravity.CENTER);
+        back.setBackground(ThemeManager.roundRect(ThemeManager.accent(theme), 20, this));
+        back.setPadding(dp(20), dp(8), dp(20), dp(8));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(40));
+        blp.topMargin = dp(10);
+        back.setLayoutParams(blp);
+        back.setOnClickListener(v -> switchMode(ThemeManager.loadDefaultMode(this)));
+        settingsPanel.addView(back);
+    }
+
+    private void addSettingHeader(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setTextColor(ThemeManager.textSec(theme));
+        tv.setPadding(0, dp(8), 0, dp(4));
+        settingsPanel.addView(tv);
+    }
+
+    private LinearLayout makeHScroll() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(3), 0, dp(3));
+        return row;
+    }
+
+    private HorizontalScrollView wrapHScroll(LinearLayout inner) {
+        HorizontalScrollView hsv = new HorizontalScrollView(this);
+        hsv.setScrollbars(0);
+        hsv.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        hsv.addView(inner);
+        return hsv;
+    }
+
+    // ── Key factory ───────────────────────────────────────────────────────────
+    private TextView makeKey(String label, float weight, boolean isFn, boolean isNum) {
+        TextView tv = new TextView(this);
+        tv.setText(label);
+        int sp = isNum ? ThemeManager.keyTextSp(size) - 1
+                       : isFn ? ThemeManager.keyTextSp(size) - 2
+                               : ThemeManager.keyTextSp(size);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        tv.setTypeface(isNum ? Typeface.MONOSPACE : isFn ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT_BOLD);
+        tv.setGravity(Gravity.CENTER);
+        tv.setTextColor(isFn ? ThemeManager.textSec(theme) : ThemeManager.textPrimary(theme));
+        tv.setBackground(ThemeManager.roundRect(
+            isNum ? ThemeManager.surface2(theme) : ThemeManager.keyBg(theme), 7, this));
+
+        int h = isNum ? ThemeManager.numHeightDp(size) : ThemeManager.keyHeightDp(size);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(h), weight);
+        lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+        tv.setLayoutParams(lp);
+        return tv;
+    }
+
+    // ── Text helpers ──────────────────────────────────────────────────────────
     private void insertKeyword(String kw) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
-        // Check if we need a leading space
         CharSequence before = ic.getTextBeforeCursor(1, 0);
-        if (before != null && before.length() > 0 && !Character.isWhitespace(before.charAt(0))) {
-            ic.commitText(" " + kw + " ", 1);
-        } else {
-            ic.commitText(kw + " ", 1);
-        }
-        typingBuffer.setLength(0);
+        String prefix = (before != null && before.length() > 0
+            && !Character.isWhitespace(before.charAt(0))) ? " " : "";
+        ic.commitText(prefix + kw + " ", 1);
+        buffer.setLength(0);
         updateAC();
+    }
+
+    private void insertTemplate(String tmpl) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+        ic.commitText(tmpl, 1);
+        switchMode(M_ABC);
     }
 
     private void commitText(String text) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         ic.commitText(text, 1);
-        if (text.equals(" ") || text.equals("\n")) {
-            typingBuffer.setLength(0);
-        } else {
-            typingBuffer.append(text);
-        }
+        if (text.equals(" ") || text.equals("\n")) buffer.setLength(0);
+        else buffer.append(text);
         updateAC();
+    }
+
+    private void moveCursorLeft() {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null) return;
+        ic.commitText("", 1);
+        // Send left arrow key event
+        long now = android.os.SystemClock.uptimeMillis();
+        ic.sendKeyEvent(new android.view.KeyEvent(now, now,
+            android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT, 0));
+        ic.sendKeyEvent(new android.view.KeyEvent(now, now,
+            android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_DPAD_LEFT, 0));
     }
 
     private void deleteChar() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
         ic.deleteSurroundingText(1, 0);
-        if (typingBuffer.length() > 0) {
-            typingBuffer.deleteCharAt(typingBuffer.length() - 1);
-        }
+        if (buffer.length() > 0) buffer.deleteCharAt(buffer.length() - 1);
         updateAC();
     }
 
     private void clearWord() {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null) return;
-        CharSequence sel = ic.getSelectedText(0);
-        if (!TextUtils.isEmpty(sel)) { ic.commitText("", 1); return; }
         CharSequence before = ic.getTextBeforeCursor(50, 0);
         if (before == null) return;
         int len = before.length();
         while (len > 0 && !Character.isWhitespace(before.charAt(len - 1))) len--;
         int del = before.length() - len;
         if (del > 0) ic.deleteSurroundingText(del, 0);
-        typingBuffer.setLength(0);
+        buffer.setLength(0);
         updateAC();
     }
 
-    // ─────────────────────────────────────────────────────────
-    // HELPERS
-    // ─────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
     private Map<String, String[]> getPool() {
         switch (mode) {
             case M_SPARK: return KeywordData.SPARK;
@@ -502,30 +809,11 @@ public class DataEngIME extends InputMethodService {
         }
     }
 
-    private boolean isKwMode() {
-        return M_SQL.equals(mode) || M_SPARK.equals(mode) || M_DB.equals(mode);
-    }
-
-    private int modeAccentColor() {
-        switch (mode) {
-            case M_SPARK: return getColor(R.color.spark_color);
-            case M_DB:    return getColor(R.color.db_color);
-            default:      return getColor(R.color.sql_color);
-        }
-    }
+    private void show(View v) { if (v != null) v.setVisibility(View.VISIBLE); }
+    private void hide(View v) { if (v != null) v.setVisibility(View.GONE); }
 
     private int dp(int v) {
         return Math.round(v * getResources().getDisplayMetrics().density);
     }
 
-    private static int parseColor(String hex) {
-        return android.graphics.Color.parseColor(hex);
-    }
-
-    private android.graphics.drawable.GradientDrawable buildRoundedBg(int color, int radiusDp) {
-        android.graphics.drawable.GradientDrawable gd = new android.graphics.drawable.GradientDrawable();
-        gd.setColor(color);
-        gd.setCornerRadius(dp(radiusDp));
-        return gd;
-    }
 }
