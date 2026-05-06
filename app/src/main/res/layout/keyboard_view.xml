@@ -2,144 +2,74 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@color/surface1">
+    android:orientation="vertical">
 
-    <!-- ── MODE TABS ── -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/tab_height"
-        android:scrollbars="none"
-        android:background="@color/bg"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp">
-        <LinearLayout
-            android:id="@+id/modeTabs"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="4dp"
-            android:divider="@android:drawable/divider_horizontal_bright"
-            android:showDividers="none">
-            <!-- Mode tabs added programmatically -->
-        </LinearLayout>
+    <HorizontalScrollView android:layout_width="match_parent" android:layout_height="34dp"
+        android:scrollbars="none" android:paddingStart="6dp" android:paddingEnd="6dp">
+        <LinearLayout android:id="@+id/modeTabs" android:layout_width="wrap_content"
+            android:layout_height="match_parent" android:orientation="horizontal"
+            android:gravity="center_vertical" android:paddingTop="4dp" android:paddingBottom="4dp"/>
     </HorizontalScrollView>
 
-    <!-- ── AUTOCOMPLETE STRIP ── -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:scrollbars="none"
-        android:background="@color/surface2"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp">
-        <LinearLayout
-            android:id="@+id/acStrip"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="3dp" />
+    <HorizontalScrollView android:id="@+id/acScrollView" android:layout_width="match_parent"
+        android:layout_height="36dp" android:scrollbars="none"
+        android:paddingStart="6dp" android:paddingEnd="6dp">
+        <LinearLayout android:id="@+id/acStrip" android:layout_width="wrap_content"
+            android:layout_height="match_parent" android:orientation="horizontal"
+            android:gravity="center_vertical"/>
     </HorizontalScrollView>
 
-    <!-- ── SUB-CATEGORY TABS (for KW modes) ── -->
-    <HorizontalScrollView
-        android:id="@+id/scScroll"
-        android:layout_width="match_parent"
-        android:layout_height="30dp"
-        android:scrollbars="none"
-        android:background="@color/surface1"
-        android:paddingStart="6dp"
-        android:paddingEnd="6dp"
-        android:visibility="gone">
-        <LinearLayout
-            android:id="@+id/scBar"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical" />
+    <HorizontalScrollView android:id="@+id/scScroll" android:layout_width="match_parent"
+        android:layout_height="28dp" android:scrollbars="none"
+        android:paddingStart="6dp" android:paddingEnd="6dp" android:visibility="gone">
+        <LinearLayout android:id="@+id/scBar" android:layout_width="wrap_content"
+            android:layout_height="match_parent" android:orientation="horizontal"
+            android:gravity="center_vertical"/>
     </HorizontalScrollView>
 
-    <!-- ── KEYWORD GRID ── -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/kwGrid"
-        android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:padding="@dimen/kb_padding"
-        android:clipToPadding="false"
-        android:background="@color/surface1"
-        android:visibility="gone"
-        android:overScrollMode="never" />
+    <androidx.recyclerview.widget.RecyclerView android:id="@+id/kwGrid"
+        android:layout_width="match_parent" android:layout_height="200dp"
+        android:padding="5dp" android:clipToPadding="false"
+        android:overScrollMode="never" android:visibility="gone"/>
 
-    <!-- ── ALPHA KEYBOARD ── -->
-    <LinearLayout
-        android:id="@+id/alphaKb"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="@dimen/kb_padding"
-        android:background="@color/surface1"
-        android:visibility="gone">
-
-        <!-- Number row -->
-        <LinearLayout
-            android:id="@+id/numRow"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/key_height_num"
-            android:orientation="horizontal"
-            android:layout_marginBottom="4dp" />
-
-        <!-- QWERTY row 1: QWERTYUIOP -->
-        <LinearLayout
-            android:id="@+id/alphaRow1"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/key_height"
-            android:orientation="horizontal"
-            android:layout_marginBottom="4dp" />
-
-        <!-- QWERTY row 2: ASDFGHJKL -->
-        <LinearLayout
-            android:id="@+id/alphaRow2"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/key_height"
-            android:orientation="horizontal"
-            android:layout_marginBottom="4dp" />
-
-        <!-- QWERTY row 3: ZXCVBNM + backspace -->
-        <LinearLayout
-            android:id="@+id/alphaRow3"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/key_height"
-            android:orientation="horizontal"
-            android:layout_marginBottom="4dp" />
-
-        <!-- Bottom row: sym | kw | space | . | enter -->
-        <LinearLayout
-            android:id="@+id/alphaBottomRow"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/key_height"
-            android:orientation="horizontal"
-            android:layout_marginBottom="2dp" />
-
+    <LinearLayout android:id="@+id/alphaKb" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical"
+        android:padding="5dp" android:visibility="gone">
+        <LinearLayout android:id="@+id/numRow" android:layout_width="match_parent"
+            android:layout_height="34dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/alphaRow1" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/alphaRow2" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/alphaRow3" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/alphaBottomRow" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="2dp"/>
     </LinearLayout>
 
-    <!-- ── SYMBOL KEYBOARD ── -->
-    <LinearLayout
-        android:id="@+id/symKb"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="@dimen/kb_padding"
-        android:background="@color/surface1"
-        android:visibility="gone">
-
-        <LinearLayout android:id="@+id/symRow1" android:layout_width="match_parent" android:layout_height="@dimen/key_height" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
-        <LinearLayout android:id="@+id/symRow2" android:layout_width="match_parent" android:layout_height="@dimen/key_height" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
-        <LinearLayout android:id="@+id/symRow3" android:layout_width="match_parent" android:layout_height="@dimen/key_height" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
-        <LinearLayout android:id="@+id/symRow4" android:layout_width="match_parent" android:layout_height="@dimen/key_height" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
-        <LinearLayout android:id="@+id/symBottomRow" android:layout_width="match_parent" android:layout_height="@dimen/key_height" android:orientation="horizontal" android:layout_marginBottom="2dp"/>
-
+    <LinearLayout android:id="@+id/symKb" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical"
+        android:padding="5dp" android:visibility="gone">
+        <LinearLayout android:id="@+id/symRow1" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/symRow2" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/symRow3" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/symRow4" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+        <LinearLayout android:id="@+id/symBottomRow" android:layout_width="match_parent"
+            android:layout_height="46dp" android:orientation="horizontal" android:layout_marginBottom="2dp"/>
     </LinearLayout>
+
+    <ScrollView android:id="@+id/templateScroll" android:layout_width="match_parent"
+        android:layout_height="250dp" android:visibility="gone">
+        <LinearLayout android:id="@+id/templateList" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp"/>
+    </ScrollView>
+
+    <LinearLayout android:id="@+id/settingsPanel" android:layout_width="match_parent"
+        android:layout_height="wrap_content" android:orientation="vertical"
+        android:padding="10dp" android:visibility="gone" android:minHeight="250dp"/>
 
 </LinearLayout>
