@@ -1,6 +1,7 @@
 package com.dataeng.keyboard;
 
 import android.content.Context;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,11 +16,15 @@ public class KwAdapter extends RecyclerView.Adapter<KwAdapter.VH> {
 
     private final List<String> items;
     private final String mode;
+    private final int theme;
+    private final int size;
     private final OnKwClick listener;
 
-    public KwAdapter(List<String> items, String mode, OnKwClick listener) {
+    public KwAdapter(List<String> items, String mode, int theme, int size, OnKwClick listener) {
         this.items    = items;
         this.mode     = mode;
+        this.theme    = theme;
+        this.size     = size;
         this.listener = listener;
     }
 
@@ -32,33 +37,39 @@ public class KwAdapter extends RecyclerView.Adapter<KwAdapter.VH> {
 
     @Override
     public void onBindViewHolder(@NonNull VH h, int pos) {
-        String kw  = items.get(pos);
+        String kw   = items.get(pos);
         String type = KeywordData.getType(kw);
         Context ctx = h.tv.getContext();
 
-        // Display text (truncate if long)
         String display = kw.length() > 17 ? kw.substring(0, 15) + "…" : kw;
         h.tv.setText(display);
         h.tv.setContentDescription(kw);
 
-        // Background & text colour by type
-        int bgRes, colorRes;
+        // Text size from theme size setting
+        h.tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, ThemeManager.keyTextSp(size) - 3);
+
+        // Height
+        ViewGroup.LayoutParams lp = h.tv.getLayoutParams();
+        lp.height = Math.round(ThemeManager.kwHeightDp(size)
+                    * ctx.getResources().getDisplayMetrics().density);
+        h.tv.setLayoutParams(lp);
+
+        int color, fillColor;
         switch (type) {
             case KeywordData.TYPE_SPARK:
-                bgRes    = R.drawable.key_bg_spark;
-                colorRes = R.color.spark_color;
+                color     = ThemeManager.spark(theme);
+                fillColor = ThemeManager.tint(color, 0.13f);
                 break;
             case KeywordData.TYPE_DB:
-                bgRes    = R.drawable.key_bg_db;
-                colorRes = R.color.db_color;
+                color     = ThemeManager.db(theme);
+                fillColor = ThemeManager.tint(color, 0.13f);
                 break;
             default:
-                bgRes    = R.drawable.key_bg_sql;
-                colorRes = R.color.sql_color;
+                color     = ThemeManager.sql(theme);
+                fillColor = ThemeManager.tint(color, 0.13f);
         }
-        h.tv.setBackground(ctx.getDrawable(bgRes));
-        h.tv.setTextColor(ctx.getColor(colorRes));
-
+        h.tv.setTextColor(color);
+        h.tv.setBackground(ThemeManager.roundRectStroke(fillColor, color, 7, 1, ctx));
         h.tv.setOnClickListener(v -> listener.onClick(kw));
     }
 
