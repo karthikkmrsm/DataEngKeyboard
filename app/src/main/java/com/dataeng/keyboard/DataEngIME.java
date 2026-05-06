@@ -327,8 +327,18 @@ public class DataEngIME extends InputMethodService {
     private void buildAlpha() {
         // Number row
         numRow.removeAllViews();
-        for (char c : "1234567890".toCharArray())
-            numRow.addView(makeKey(String.valueOf(c), 1f, false, false));
+        // Set numRow height same as letter rows so numbers are easy to tap
+        ViewGroup.LayoutParams numLp = numRow.getLayoutParams();
+        if (numLp != null) {
+            numLp.height = dp(ThemeManager.keyHeightDp(size));
+            numRow.setLayoutParams(numLp);
+        }
+        for (char c : "1234567890".toCharArray()) {
+            final String num = String.valueOf(c);
+            TextView numKey = makeKey(num, 1f, false, false);
+            numKey.setOnClickListener(v -> commitText(num));
+            numRow.addView(numKey);
+        }
 
         buildQwertyRows();
         buildAlphaBottomRow();
@@ -722,9 +732,7 @@ public class DataEngIME extends InputMethodService {
     private TextView makeKey(String label, float weight, boolean isFn, boolean isNum) {
         TextView tv = new TextView(this);
         tv.setText(label);
-        int sp = isNum ? ThemeManager.keyTextSp(size) - 1
-                       : isFn ? ThemeManager.keyTextSp(size) - 2
-                               : ThemeManager.keyTextSp(size);
+        int sp = isFn ? ThemeManager.keyTextSp(size) - 1 : ThemeManager.keyTextSp(size);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
         tv.setTypeface(isNum ? Typeface.MONOSPACE : isFn ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT_BOLD);
         tv.setGravity(Gravity.CENTER);
@@ -732,7 +740,7 @@ public class DataEngIME extends InputMethodService {
         tv.setBackground(ThemeManager.roundRect(
             isNum ? ThemeManager.surface2(theme) : ThemeManager.keyBg(theme), 7, this));
 
-        int h = isNum ? ThemeManager.numHeightDp(size) : ThemeManager.keyHeightDp(size);
+        int h = ThemeManager.keyHeightDp(size);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(h), weight);
         lp.setMargins(dp(1), dp(2), dp(1), dp(2));
         tv.setLayoutParams(lp);
