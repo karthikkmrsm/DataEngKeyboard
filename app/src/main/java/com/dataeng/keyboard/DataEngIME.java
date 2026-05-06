@@ -711,7 +711,7 @@ public class DataEngIME extends InputMethodService {
 
     private HorizontalScrollView wrapHScroll(LinearLayout inner) {
         HorizontalScrollView hsv = new HorizontalScrollView(this);
-        hsv.setScrollbars(0);
+        hsv.setHorizontalScrollBarEnabled(false);
         hsv.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         hsv.addView(inner);
