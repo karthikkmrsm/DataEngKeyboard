@@ -328,7 +328,7 @@ public class DataEngIME extends InputMethodService {
         // Number row
         numRow.removeAllViews();
         for (char c : "1234567890".toCharArray())
-            numRow.addView(makeKey(String.valueOf(c), 1f, false, true));
+            numRow.addView(makeKey(String.valueOf(c), 1f, false, false));
 
         buildQwertyRows();
         buildAlphaBottomRow();
@@ -734,8 +734,9 @@ public class DataEngIME extends InputMethodService {
 
         int h = isNum ? ThemeManager.numHeightDp(size) : ThemeManager.keyHeightDp(size);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(h), weight);
-        lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+        lp.setMargins(dp(1), dp(2), dp(1), dp(2));
         tv.setLayoutParams(lp);
+        tv.setMinimumWidth(dp(28));
         return tv;
     }
 
