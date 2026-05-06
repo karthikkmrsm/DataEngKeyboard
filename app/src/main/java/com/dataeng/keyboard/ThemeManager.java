@@ -80,7 +80,7 @@ public class ThemeManager {
         return size == SIZE_SMALL ? 34 : size == SIZE_LARGE ? 46 : 40;
     }
     public static int numHeightDp(int size) {
-        return size == SIZE_SMALL ? 30 : size == SIZE_LARGE ? 40 : 34;
+        return size == SIZE_SMALL ? 42 : size == SIZE_LARGE ? 54 : 46;
     }
 
     public static GradientDrawable roundRect(int color, int radiusDp, Context ctx) {
